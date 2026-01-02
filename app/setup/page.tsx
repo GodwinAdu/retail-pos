@@ -1,5 +1,6 @@
+import { getCurrentUser } from "@/lib/utils/auth";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/helpers/current-user";
+
 
 export default async function SetupRootPage() {
     const user = await getCurrentUser();
