@@ -9,6 +9,7 @@ interface BranchSetupPageProps {
 
 export default  async function BranchSetupPage({ params }: BranchSetupPageProps) {
     const { storeId } = await params;
+    console.log("Rendering BranchSetupPage for storeId:", storeId);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative overflow-hidden">

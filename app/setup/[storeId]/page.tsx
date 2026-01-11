@@ -5,6 +5,7 @@ import { ShoppingCart, Store, MapPin, Clock, Settings, ArrowRight } from "lucide
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 interface SetupPageProps {
     params:Promise <{
@@ -12,8 +13,9 @@ interface SetupPageProps {
     }>;
 }
 
-export default async function SetupPage({ params }: SetupPageProps) {
-    const { storeId } = await params;
+export default  function SetupPage() {
+    const params  = useParams();
+    const { storeId } = params;
 
     const setupSteps = [
         {

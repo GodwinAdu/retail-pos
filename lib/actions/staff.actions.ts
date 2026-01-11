@@ -2,59 +2,63 @@
 
 import { connectToDB } from "../mongoose";
 import User from "../models/user.models";
+import { withSubscriptionCheckByStoreId } from "@/lib/utils/subscription-wrapper";
+import { Types } from "mongoose";
 
-export async function getStaffMembers(branchId: string) {
+export const getStaffMembers = withSubscriptionCheckByStoreId(async (storeId: string, branchId: string) => {
     try {
         await connectToDB();
         
-        const staff = await User.find({ 
-            accessLocation: branchId,
+        const staff = await User.find({
+            storeId,
+            accessLocation: { $in: [branchId] },
             role: { $in: ['manager', 'sales_associate', 'cashier', 'inventory_manager'] }
-        }).select('fullName email role phoneNumber isActive createdAt');
+        } as any).select('fullName email role phoneNumber isActive createdAt');
         
-        return staff;
+        return JSON.parse(JSON.stringify(staff));
     } catch (error) {
         console.error("Error fetching staff:", error);
         throw new Error("Failed to fetch staff members");
     }
-}
+});
 
-export async function getStaffStats(branchId: string) {
+export const getStaffStats = withSubscriptionCheckByStoreId(async (storeId: string, branchId: string) => {
     try {
         await connectToDB();
         
-        const totalStaff = await User.countDocuments({ 
-            accessLocation: branchId,
+        const totalStaff = await User.countDocuments({
+            storeId,
+            accessLocation: { $in: [branchId] },
             role: { $in: ['manager', 'sales_associate', 'cashier', 'inventory_manager'] }
-        });
+        } as any);
         
-        const activeStaff = await User.countDocuments({ 
-            accessLocation: branchId,
+        const activeStaff = await User.countDocuments({
+            storeId,
+            accessLocation: { $in: [branchId] },
             role: { $in: ['manager', 'sales_associate', 'cashier', 'inventory_manager'] },
             isActive: true
-        });
+        } as any);
         
         return {
             totalStaff,
             activeStaff,
-            onBreak: Math.floor(Math.random() * 3), // Mock data
+            onBreak: Math.floor(Math.random() * 3),
             avgHours: 38.7
         };
     } catch (error) {
         console.error("Error fetching staff stats:", error);
         throw new Error("Failed to fetch staff statistics");
     }
-}
+});
 
-export async function createStaffMember(data: {
+export const createStaffMember = withSubscriptionCheckByStoreId(async (storeId: string, data: {
     fullName: string;
     email: string;
     phone: string;
     role: string;
     password: string;
-    storeId: string;
     branchId: string;
-}) {
+}) => {
     try {
         await connectToDB();
         
@@ -75,7 +79,7 @@ export async function createStaffMember(data: {
             phoneNumber: data.phone,
             role: data.role,
             password: hashedPassword,
-            storeId: data.storeId,
+            storeId,
             accessLocation: [data.branchId],
             isActive: true
         });
@@ -86,20 +90,20 @@ export async function createStaffMember(data: {
         console.error("Error creating staff member:", error);
         throw new Error(error instanceof Error ? error.message : "Failed to create staff member");
     }
-}
+});
 
-export async function updateStaffMember(userId: string, data: {
+export const updateStaffMember = withSubscriptionCheckByStoreId(async (storeId: string, userId: string, data: {
     fullName?: string;
     email?: string;
     phone?: string;
     role?: string;
     isActive?: boolean;
-}) {
+}) => {
     try {
         await connectToDB();
         
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: userId, storeId } as any,
             { $set: data },
             { new: true }
         );
@@ -113,13 +117,13 @@ export async function updateStaffMember(userId: string, data: {
         console.error("Error updating staff member:", error);
         throw new Error("Failed to update staff member");
     }
-}
+});
 
-export async function deleteStaffMember(userId: string) {
+export const deleteStaffMember = withSubscriptionCheckByStoreId(async (storeId: string, userId: string) => {
     try {
         await connectToDB();
         
-        const deletedUser = await User.findByIdAndDelete(userId);
+        const deletedUser = await User.findOneAndDelete({ _id: userId, storeId } as any);
         
         if (!deletedUser) {
             throw new Error("Staff member not found");
@@ -130,4 +134,4 @@ export async function deleteStaffMember(userId: string) {
         console.error("Error deleting staff member:", error);
         throw new Error("Failed to delete staff member");
     }
-}
+});

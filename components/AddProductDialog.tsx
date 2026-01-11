@@ -13,6 +13,7 @@ import { getCategories, createCategory } from "@/lib/actions/category.actions";
 import { createProduct } from "@/lib/actions/product.actions";
 import CreateCategoryDialog from "@/components/CreateCategoryDialog";
 import { useSettings } from "@/lib/contexts/SettingsContext";
+import { useSubscriptionHandler } from "@/hooks/use-subscription-handler";
 
 interface AddProductDialogProps {
   storeId: string;
@@ -22,6 +23,7 @@ interface AddProductDialogProps {
 
 export default function AddProductDialog({ storeId, branchId, onProductAdded }: AddProductDialogProps) {
   const { inventorySettings } = useSettings();
+  const { executeWithSubscriptionCheck } = useSubscriptionHandler();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
@@ -55,44 +57,39 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
     }
 
     setLoading(true);
-    try {
+    
+    const result = await executeWithSubscriptionCheck(async () => {
       const productData = {
         ...formData,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
         minStock: formData.minStock ? parseInt(formData.minStock) : inventorySettings.lowStockThreshold,
         costPrice: formData.costPrice ? parseFloat(formData.costPrice) : 0,
-        storeId: storeId,
         branchId: branchId,
         categoryId: formData.category
       };
       
-      const product = await createProduct(productData);
-      
-      if (product) {
-        toast.success("Product added successfully");
-        setOpen(false);
-        setFormData({
-          name: "",
-          sku: "",
-          category: "",
-          price: "",
-          stock: "",
-          description: "",
-          barcode: "",
-          minStock: "",
-          costPrice: ""
-        });
-        onProductAdded?.();
-      } else {
-        toast.error("Failed to add product");
-      }
-    } catch (error) {
-      console.error("Add product error:", error);
-      toast.error("Failed to add product");
-    } finally {
-      setLoading(false);
+      return await createProduct(storeId, productData);
+    }, "Failed to add product");
+    
+    if (result) {
+      toast.success("Product added successfully");
+      setOpen(false);
+      setFormData({
+        name: "",
+        sku: "",
+        category: "",
+        price: "",
+        stock: "",
+        description: "",
+        barcode: "",
+        minStock: "",
+        costPrice: ""
+      });
+      onProductAdded?.();
     }
+    
+    setLoading(false);
   };
 
   const handleCategoryCreated = async () => {

@@ -5,6 +5,7 @@ import Sale from "@/lib/models/sale.models";
 import Customer from "@/lib/models/customer.models";
 import Product from "@/lib/models/product.models";
 import Category from "@/lib/models/category.models";
+import { withSubscriptionCheckByStoreId } from "@/lib/utils/subscription-wrapper";
 
 function getDateRange(range: string) {
   const now = new Date();
@@ -66,7 +67,7 @@ function getDateRange(range: string) {
   return { startDate, endDate };
 }
 
-export async function getReportStats(storeId: string, branchId: string, dateRange: string = 'this_month') {
+export const getReportStats = withSubscriptionCheckByStoreId(async (storeId: string, branchId: string, dateRange: string = 'this_month') => {
   try {
     await connectToDB();
     
@@ -141,7 +142,7 @@ export async function getReportStats(storeId: string, branchId: string, dateRang
       avgOrderValueGrowth: 0
     };
   }
-}
+});
 
 export async function getSalesChart(storeId: string, branchId: string, dateRange: string = 'last_6_months') {
   try {

@@ -108,6 +108,23 @@ export interface ICategory extends Document {
   updatedAt: Date;
 }
 
+// Supplier Types
+export interface ISupplier extends Document {
+  _id: string;
+  storeId: Schema.Types.ObjectId;
+  name: string;
+  contact?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  isActive: boolean;
+  products: Schema.Types.ObjectId[];
+  paymentTerms?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Product Types
 export interface IProduct extends Document {
   _id: string;
@@ -125,6 +142,17 @@ export interface IProduct extends Document {
   minStock: number;
   maxStock: number;
   supplier?: string;
+  supplierInfo?: {
+    name?: string;
+    contact?: string;
+    email?: string;
+    address?: string;
+  };
+  reorderPoint: number;
+  autoReorder: boolean;
+  expiryDate?: Date;
+  batchNumber?: string;
+  isPerishable: boolean;
   variations: {
     name: string;
     price: number;
@@ -136,7 +164,7 @@ export interface IProduct extends Document {
 
 // Customer Types
 export interface ICustomer extends Document {
-  _id: string;
+  _id:string;
   storeId: Schema.Types.ObjectId;
   branchId: Schema.Types.ObjectId;
   name: string;
@@ -146,6 +174,67 @@ export interface ICustomer extends Document {
   loyaltyPoints: number;
   totalPurchases: number;
   lastVisit?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Social Media Types
+export interface ISocialPost extends Document {
+  _id: string;
+  storeId: Schema.Types.ObjectId;
+  branchId: Schema.Types.ObjectId;
+  platform: 'facebook' | 'instagram' | 'twitter' | 'whatsapp';
+  content: string;
+  mediaUrls: string[];
+  hashtags: string[];
+  scheduledFor?: Date;
+  status: 'draft' | 'scheduled' | 'posted' | 'failed';
+  postId?: string;
+  engagement: {
+    likes: number;
+    shares: number;
+    comments: number;
+    reach: number;
+  };
+  relatedProductIds: Schema.Types.ObjectId[];
+  relatedSaleIds: Schema.Types.ObjectId[];
+  errorMessage?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Offline Sale Types
+export interface IOfflineSale extends Document {
+  _id: string;
+  storeId: Schema.Types.ObjectId;
+  branchId: Schema.Types.ObjectId;
+  localId: string;
+  saleData: any;
+  status: 'pending' | 'synced' | 'failed';
+  syncAttempts: number;
+  lastSyncAttempt?: Date;
+  syncedSaleId?: Schema.Types.ObjectId;
+  errorMessage?: string;
+  deviceId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Notification Types
+export interface INotification extends Document {
+  _id: string;
+  storeId: Schema.Types.ObjectId;
+  branchId: Schema.Types.ObjectId;
+  type: 'sms' | 'email' | 'push';
+  recipient: string;
+  subject?: string;
+  message: string;
+  status: 'pending' | 'sent' | 'failed' | 'delivered';
+  relatedSaleId?: Schema.Types.ObjectId;
+  metadata?: any;
+  sentAt?: Date;
+  deliveredAt?: Date;
+  errorMessage?: string;
   createdAt: Date;
   updatedAt: Date;
 }

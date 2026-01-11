@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Store, MapPin, User, Save, Loader2, Settings2, ShoppingCart, Package } from "lucide-react";
+import { Store, MapPin, User, Save, Loader2, Settings2, ShoppingCart, Package, Trash2, AlertTriangle } from "lucide-react";
 import { updateStoreSettings, updateBranchSettings, updateUserProfile } from "@/lib/actions/settings.actions";
+import { deleteBranch } from "@/lib/actions/branch.actions";
 import { useRouter } from "next/navigation";
 import SettingsSummary from "@/components/SettingsSummary";
 
@@ -23,7 +24,8 @@ interface SettingsClientProps {
 
 export default function SettingsClient({ user, store, branch, storeId, branchId }: SettingsClientProps) {
     const router = useRouter();
-    const [loading, setLoading] = useState({ store: false, branch: false, user: false });
+    const [loading, setLoading] = useState({ store: false, branch: false, user: false, delete: false });
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const [storeData, setStoreData] = useState({
         name: store?.name || "",
@@ -270,6 +272,58 @@ export default function SettingsClient({ user, store, branch, storeId, branchId 
                                 Save Branch Info
                             </Button>
                         </form>
+                    </CardContent>
+                </Card>
+                
+                {/* Danger Zone */}
+                <Card className="bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent backdrop-blur-xl border border-red-400/30 shadow-2xl">
+                    <CardHeader>
+                        <CardTitle className="text-red-400 flex items-center">
+                            <AlertTriangle className="w-5 h-5 mr-2" />
+                            Danger Zone
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <h4 className="text-red-400 font-semibold mb-2">Delete Branch</h4>
+                            <p className="text-gray-300 text-sm mb-4">
+                                Permanently delete this branch. This action cannot be undone.
+                            </p>
+                            <Button 
+                                onClick={() => {
+                                    if (!showDeleteConfirm) {
+                                        setShowDeleteConfirm(true);
+                                    } else {
+                                        setLoading(prev => ({ ...prev, delete: true }));
+                                        deleteBranch(storeId, branchId).then(result => {
+                                            if (result.success) {
+                                                router.push(`/dashboard/${storeId}`);
+                                            } else {
+                                                alert(result.error || "Failed to delete branch");
+                                            }
+                                        }).finally(() => {
+                                            setLoading(prev => ({ ...prev, delete: false }));
+                                            setShowDeleteConfirm(false);
+                                        });
+                                    }
+                                }}
+                                disabled={loading.delete}
+                                variant={showDeleteConfirm ? "destructive" : "outline"}
+                                className={showDeleteConfirm ? "" : "border-red-500 text-red-400 hover:bg-red-500/20"}
+                            >
+                                {loading.delete ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                                {showDeleteConfirm ? "Confirm Delete" : "Delete Branch"}
+                            </Button>
+                            {showDeleteConfirm && (
+                                <Button 
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    variant="outline"
+                                    className="ml-2 border-gray-500 text-gray-400"
+                                >
+                                    Cancel
+                                </Button>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
             </TabsContent>

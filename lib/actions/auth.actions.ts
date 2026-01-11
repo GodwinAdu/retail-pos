@@ -11,7 +11,7 @@ import Branch from "../models/branch.models";
 import { generateUniqueUsername } from "../helpers/generate-username";
 import { Types } from "mongoose";
 
-const SECRET_KEY = new TextEncoder().encode(process.env.TOKEN_SECRET_KEY);
+const SECRET_KEY = new TextEncoder().encode(process.env.TOKEN_SECRET_KEY!);
 
 interface SignUpData {
     fullName: string;
@@ -31,6 +31,10 @@ interface SignInData {
 
 export async function signUp(data: SignUpData) {
     try {
+        if (!process.env.TOKEN_SECRET_KEY) {
+            throw new Error("TOKEN_SECRET_KEY environment variable is required");
+        }
+        
         await connectToDB();
 
         // Check if user already exists
@@ -75,7 +79,7 @@ export async function signUp(data: SignUpData) {
         const savedUser = await user.save();
 
         // Update store with owner
-        savedStore.owner = savedUser._id;
+        savedStore.owner = savedUser._id as any;
         await savedStore.save();
 
         // Create JWT token
@@ -185,7 +189,7 @@ export async function signIn(data: SignInData) {
             redirectUrl = `/dashboard/${storeId}/${user.accessLocation[0]}`;
         } else {
             // Check if store has any branches
-            const branches = await Branch.find({ storeId: new Types.ObjectId(storeId) });
+            const branches = await Branch.find({ storeId: storeId as any });
             if (branches.length > 0) {
                 // Store has branches, give user access to first branch
                 const firstBranch = branches[0];

@@ -3,8 +3,9 @@
 import { connectToDB } from "@/lib/mongoose";
 import Product from "@/lib/models/product.models";
 import Category from "../models/category.models";
+import { withSubscriptionCheckByStoreId } from "@/lib/utils/subscription-wrapper";
 
-export async function getProducts(storeId: string, branchId: string) {
+export const getProducts = withSubscriptionCheckByStoreId(async (storeId: string, branchId: string) => {
   try {
     await connectToDB();
     const products = await Product.find({ storeId,branchId })
@@ -16,40 +17,44 @@ export async function getProducts(storeId: string, branchId: string) {
     console.error("Error fetching products:", error);
     return [];
   }
-}
+});
 
-export async function createProduct(productData: any) {
+export const createProduct = withSubscriptionCheckByStoreId(async (storeId: string, productData: any) => {
   try {
     await connectToDB();
-    const product = await Product.create(productData);
+    const product = await Product.create({ ...productData, storeId });
     return JSON.parse(JSON.stringify(product));
   } catch (error) {
     console.error("Error creating product:", error);
     return null;
   }
-}
+});
 
-export async function updateProduct(productId: string, updateData: any) {
+export const updateProduct = withSubscriptionCheckByStoreId(async (storeId: string, productId: string, updateData: any) => {
   try {
     await connectToDB();
-    const product = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+    const product = await Product.findOneAndUpdate(
+      { _id: productId, storeId }, 
+      updateData, 
+      { new: true }
+    );
     return JSON.parse(JSON.stringify(product));
   } catch (error) {
     console.error("Error updating product:", error);
     return null;
   }
-}
+});
 
-export async function deleteProduct(productId: string) {
+export const deleteProduct = withSubscriptionCheckByStoreId(async (storeId: string, productId: string) => {
   try {
     await connectToDB();
-    await Product.findByIdAndDelete(productId);
+    await Product.findOneAndDelete({ _id: productId, storeId });
     return true;
   } catch (error) {
     console.error("Error deleting product:", error);
     return false;
   }
-}
+});
 
 export async function getProductByBarcode(barcode: string, storeId: string) {
   try {
@@ -62,13 +67,16 @@ export async function getProductByBarcode(barcode: string, storeId: string) {
   }
 }
 
-export async function updateProductStock(productId: string, quantity: number) {
+export const updateProductStock = withSubscriptionCheckByStoreId(async (storeId: string, productId: string, quantity: number) => {
   try {
     await connectToDB();
-    await Product.findByIdAndUpdate(productId, { $inc: { stock: -quantity } });
+    await Product.findOneAndUpdate(
+      { _id: productId, storeId }, 
+      { $inc: { stock: -quantity } }
+    );
     return true;
   } catch (error) {
     console.error("Error updating product stock:", error);
     return false;
   }
-}
+});

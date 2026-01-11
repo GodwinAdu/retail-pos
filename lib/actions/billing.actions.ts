@@ -1,8 +1,20 @@
 "use server";
 
 import { connectToDB } from "../mongoose";
-import { getBranches } from "./branch.actions";
 import Store from "../models/store.models";
+import Branch from "../models/branch.models";
+
+// Billing functions should bypass subscription checks
+async function getBranchesForBilling(storeId: string) {
+    try {
+        await connectToDB();
+        const branches = await Branch.find({ storeId }).lean();
+        return JSON.parse(JSON.stringify(branches));
+    } catch (error) {
+        console.error("Error fetching branches for billing:", error);
+        return [];
+    }
+}
 
 export async function getBillingInfo(storeId: string) {
     try {
@@ -13,7 +25,7 @@ export async function getBillingInfo(storeId: string) {
             throw new Error("Store not found");
         }
 
-        const branches = await getBranches(storeId);
+        const branches = await getBranchesForBilling(storeId);
         const branchCount = branches.length;
         const pricePerBranch = 80; // $80 per branch per month
         const monthlyTotal = branchCount * pricePerBranch;
@@ -50,7 +62,8 @@ export async function getBillingInfo(storeId: string) {
             status,
             paymentStatus,
             isBlocked,
-            paymentHistory: store.paymentHistory || []
+            paymentHistory: store.paymentHistory || [],
+            branches // Include branches data directly
         };
     } catch (error) {
         console.error("Error fetching billing info:", error);

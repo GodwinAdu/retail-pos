@@ -7,8 +7,9 @@ import Customer from "../models/customer.models";
 import User from "../models/user.models";
 import { Types } from "mongoose";
 import Category from "../models/category.models";
+import { withSubscriptionCheckByStoreId } from "@/lib/utils/subscription-wrapper";
 
-export async function getDashboardData(storeId: string, branchId: string, startDate?: Date, endDate?: Date) {
+export const getDashboardData = withSubscriptionCheckByStoreId(async (storeId: string, branchId: string, startDate?: Date, endDate?: Date) => {
   try {
     await connectToDB();
 
@@ -125,11 +126,13 @@ export async function getDashboardData(storeId: string, branchId: string, startD
     return {
       sales: {
         today: todaySales.length,
-        change: yesterdaySales.length > 0 ? ((todaySales.length - yesterdaySales.length) / yesterdaySales.length * 100) : 0
+        change: yesterdaySales.length > 0 ? ((todaySales.length - yesterdaySales.length) / yesterdaySales.length * 100) : 0,
+        target: 50 // Daily sales target
       },
       revenue: {
         today: todayRevenue,
-        change: Math.round(revenueChange)
+        change: Math.round(revenueChange),
+        target: 10000 // Daily revenue target
       },
       products: {
         total: products.length,
@@ -138,7 +141,8 @@ export async function getDashboardData(storeId: string, branchId: string, startD
       },
       customers: {
         total: totalCustomers,
-        new: newCustomers
+        new: newCustomers,
+        goal: 1000 // Customer goal
       },
       performance: {
         avgSaleTime: 3,
@@ -155,4 +159,4 @@ export async function getDashboardData(storeId: string, branchId: string, startD
     console.error("Error fetching dashboard data:", error);
     throw error;
   }
-}
+});

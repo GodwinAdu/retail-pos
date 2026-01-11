@@ -1,16 +1,21 @@
+"use server";
+
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 import User from "../models/user.models";
 import { connectToDB } from "../mongoose";
 import Store from "../models/store.models";
 
-const SECRET_KEY = new TextEncoder().encode(process.env.TOKEN_SECRET_KEY!);
+if (!process.env.TOKEN_SECRET_KEY) {
+  throw new Error("TOKEN_SECRET_KEY environment variable is required");
+}
+
+const SECRET_KEY = new TextEncoder().encode(process.env.TOKEN_SECRET_KEY);
 
 export async function currentUser() {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get('token')?.value;
-        console.log("Current User Token:", token);
 
         if (!token) {
             return null;

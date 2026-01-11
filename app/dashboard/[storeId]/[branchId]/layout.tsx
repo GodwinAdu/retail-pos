@@ -1,4 +1,5 @@
 import { SettingsProvider } from "@/lib/contexts/SettingsContext";
+import SubscriptionBlocker from "@/components/SubscriptionBlocker";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -8,10 +9,12 @@ interface DashboardLayoutProps {
 export default async function DashboardLayout({ children, params }: DashboardLayoutProps) {
     const { storeId, branchId } = await params;
     return (
-        <SettingsProvider branchId={branchId}>
-            <div className="w-full">
-                {children}
-            </div>
-        </SettingsProvider>
+        <SubscriptionBlocker storeId={storeId}>
+            <SettingsProvider branchId={branchId}>
+                <div className="w-full">
+                    {children}
+                </div>
+            </SettingsProvider>
+        </SubscriptionBlocker>
     );
 }

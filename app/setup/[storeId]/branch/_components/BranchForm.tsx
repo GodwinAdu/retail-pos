@@ -41,13 +41,14 @@ export default function BranchForm({ storeId }: BranchFormProps) {
         setError("");
 
         try {
+            console.log("Submitting branch form with data:", { storeId, ...formData });
             const result = await createBranch({
                 storeId,
                 ...formData
             });
             
             if (result.success) {
-                router.push(`/dashboard/${storeId}/${result.branch.id}`);
+                router.push(`/dashboard/${storeId}/${result.branch._id}`);
             }
         } catch (error: any) {
             setError(error.message || "Failed to create branch");

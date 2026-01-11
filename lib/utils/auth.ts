@@ -5,6 +5,10 @@ import { jwtVerify } from "jose";
 import { connectToDB } from "../mongoose";
 import User from "../models/user.models";
 
+if (!process.env.TOKEN_SECRET_KEY!) {
+  throw new Error("TOKEN_SECRET_KEY environment variable is required");
+}
+
 const SECRET_KEY = new TextEncoder().encode(process.env.TOKEN_SECRET_KEY);
 
 export async function getCurrentUser() {
@@ -26,7 +30,7 @@ export async function getCurrentUser() {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      storeId: user.storeId.toString(),
+      storeId: user.storeId?.toString() || null,
     } : null;
   } catch (error) {
     return null;

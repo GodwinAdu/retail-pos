@@ -4,8 +4,9 @@ import { connectToDB } from "../mongoose";
 import Store from "../models/store.models";
 import Branch from "../models/branch.models";
 import User from "../models/user.models";
+import { withSubscriptionCheckByStoreId } from "@/lib/utils/subscription-wrapper";
 
-export async function getStoreSettings(storeId: string) {
+export const getStoreSettings = withSubscriptionCheckByStoreId(async (storeId: string) => {
     try {
         await connectToDB();
         const store = await Store.findById(storeId);
@@ -14,10 +15,15 @@ export async function getStoreSettings(storeId: string) {
         console.error("Error fetching store settings:", error);
         throw new Error("Failed to fetch store settings");
     }
-}
+});
 
 export async function getBranchSettings(branchId: string) {
     try {
+        if (!branchId || branchId === 'undefined') {
+            console.error('Invalid branchId:', branchId);
+            return null;
+        }
+        
         await connectToDB();
         const branch = await Branch.findById(branchId);
         return branch;
@@ -27,12 +33,12 @@ export async function getBranchSettings(branchId: string) {
     }
 }
 
-export async function updateStoreSettings(storeId: string, data: {
+export const updateStoreSettings = withSubscriptionCheckByStoreId(async (storeId: string, data: {
     name?: string;
     description?: string;
     phone?: string;
     email?: string;
-}) {
+}) => {
     try {
         await connectToDB();
         const updatedStore = await Store.findByIdAndUpdate(
@@ -45,9 +51,10 @@ export async function updateStoreSettings(storeId: string, data: {
         console.error("Error updating store settings:", error);
         throw new Error("Failed to update store settings");
     }
-}
+});
 
-export async function updateBranchSettings(branchId: string, data: {
+export const updateBranchSettings = async (branchId: string, data: {
+    storeId: string;
     name?: string;
     address?: string;
     phone?: string;
@@ -56,20 +63,22 @@ export async function updateBranchSettings(branchId: string, data: {
     posSettings?: any;
     inventorySettings?: any;
     operatingHours?: any[];
-}) {
-    try {
-        await connectToDB();
-        const updatedBranch = await Branch.findByIdAndUpdate(
-            branchId,
-            { $set: data },
-            { new: true }
-        );
-        return updatedBranch;
-    } catch (error) {
-        console.error("Error updating branch settings:", error);
-        throw new Error("Failed to update branch settings");
-    }
-}
+}) => {
+    return withSubscriptionCheckByStoreId(async (storeId: string, branchId: string, updateData: any) => {
+        try {
+            await connectToDB();
+            const updatedBranch = await Branch.findOneAndUpdate(
+                { _id: branchId, storeId } as any,
+                { $set: updateData },
+                { new: true }
+            );
+            return updatedBranch;
+        } catch (error) {
+            console.error("Error updating branch settings:", error);
+            throw new Error("Failed to update branch settings");
+        }
+    })(data.storeId, branchId, data);
+};
 
 export async function updateUserProfile(userId: string, data: {
     fullName?: string;

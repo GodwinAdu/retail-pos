@@ -3,6 +3,7 @@
 import { connectToDB } from "../mongoose";
 import Branch from "../models/branch.models";
 import { Types } from "mongoose";
+import { withSubscriptionCheckByStoreId } from "@/lib/utils/subscription-wrapper";
 
 interface UpdatePOSSettingsData {
     branchId: string;
@@ -22,12 +23,12 @@ interface UpdatePOSSettingsData {
     multiCurrency: boolean;
 }
 
-export async function updatePOSSettings(data: UpdatePOSSettingsData) {
+export const updatePOSSettings = withSubscriptionCheckByStoreId(async (storeId: string, data: UpdatePOSSettingsData) => {
     try {
         await connectToDB();
 
-        const updatedBranch = await Branch.findByIdAndUpdate(
-            data.branchId,
+        const updatedBranch = await Branch.findOneAndUpdate(
+            { _id: data.branchId, storeId },
             {
                 $set: {
                     posSettings: {
@@ -62,7 +63,7 @@ export async function updatePOSSettings(data: UpdatePOSSettingsData) {
         console.error("Update POS settings error:", error);
         throw error;
     }
-}
+});
 
 export async function getPOSSettings(branchId: string) {
     try {

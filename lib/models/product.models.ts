@@ -70,6 +70,33 @@ const ProductSchema: Schema<IProduct> = new Schema(
             type: String,
             default: null,
         },
+        supplierInfo: {
+            name: { type: String, default: null },
+            contact: { type: String, default: null },
+            email: { type: String, default: null },
+            address: { type: String, default: null },
+        },
+        reorderPoint: {
+            type: Number,
+            default: 10,
+            min: 0,
+        },
+        autoReorder: {
+            type: Boolean,
+            default: false,
+        },
+        expiryDate: {
+            type: Date,
+            default: null,
+        },
+        batchNumber: {
+            type: String,
+            default: null,
+        },
+        isPerishable: {
+            type: Boolean,
+            default: false,
+        },
         variations: [{
             name: {
                 type: String,

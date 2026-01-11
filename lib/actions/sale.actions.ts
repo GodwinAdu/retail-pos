@@ -3,11 +3,13 @@
 import { connectToDB } from "@/lib/mongoose";
 import Sale from "@/lib/models/sale.models";
 import Customer from "@/lib/models/customer.models";
+import { withSubscriptionCheckByStoreId } from "@/lib/utils/subscription-wrapper";
+import mongoose from "mongoose";
 
-export async function getSales(storeId: string, branchId: string, limit?: number) {
+export const getSales = withSubscriptionCheckByStoreId(async (storeId: string, branchId: string, limit?: number) => {
   try {
     await connectToDB();
-    const query = Sale.find({ storeId, branchId })
+    const query = Sale.find({ storeId, branchId } as any)
       .populate('customerId', 'name email phone')
       .sort({ createdAt: -1 });
     
@@ -21,9 +23,9 @@ export async function getSales(storeId: string, branchId: string, limit?: number
     console.error("Error fetching sales:", error);
     return [];
   }
-}
+});
 
-export async function getSaleStats(storeId: string, branchId: string) {
+export const getSaleStats = withSubscriptionCheckByStoreId(async (storeId: string, branchId: string) => {
   try {
     await connectToDB();
     const today = new Date();
@@ -39,21 +41,21 @@ export async function getSaleStats(storeId: string, branchId: string) {
       storeId,
       branchId,
       createdAt: { $gte: today }
-    }).lean();
+    } as any).lean();
     
     // Yesterday's sales
     const yesterdaySales = await Sale.find({
       storeId,
       branchId,
       createdAt: { $gte: yesterday, $lt: today }
-    }).lean();
+    } as any).lean();
     
     // This month's sales
     const thisMonthSales = await Sale.find({
       storeId,
       branchId,
       createdAt: { $gte: thisMonth }
-    }).lean();
+    } as any).lean();
     
     const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.total, 0);
     const yesterdayRevenue = yesterdaySales.reduce((sum, sale) => sum + sale.total, 0);
@@ -83,10 +85,9 @@ export async function getSaleStats(storeId: string, branchId: string) {
       transactionGrowth: 0
     };
   }
-}
+});
 
-export async function createSale(saleData: {
-  storeId: string;
+export const createSale = withSubscriptionCheckByStoreId(async (storeId: string, saleData: {
   branchId: string;
   customerId?: string;
   customerName?: string;
@@ -108,123 +109,234 @@ export async function createSale(saleData: {
   paymentMethod?: string;
   notes?: string;
   cashierId?: string;
-}) {
+}) => {
   try {
-    console.log('createSale called with:', saleData);
+    console.log('Sale creation initiated');
     await connectToDB();
     
     // Generate sale number
-    const saleCount = await Sale.countDocuments({ storeId: saleData.storeId, branchId: saleData.branchId });
+    const saleCount = await Sale.countDocuments({ 
+      storeId: new mongoose.Types.ObjectId(storeId), 
+      branchId: new mongoose.Types.ObjectId(saleData.branchId) 
+    });
     const saleNumber = `S${String(saleCount + 1).padStart(6, '0')}`;
     
     console.log('Creating sale with number:', saleNumber);
     const sale = await Sale.create({
       ...saleData,
+      storeId,
       saleNumber,
       status: 'completed',
       paymentStatus: 'paid'
     });
     
-    console.log('Sale created successfully:', sale._id);
+    console.log('Sale created successfully');
     
     // Update customer total purchases and loyalty points if customer exists
     if (saleData.customerId) {
-      await Customer.findByIdAndUpdate(saleData.customerId, {
-        $inc: {
-          totalPurchases: saleData.total,
-          loyaltyPoints: Math.floor(saleData.total / 10) // 1 point per $10
+      if (!mongoose.Types.ObjectId.isValid(saleData.customerId)) {
+        console.error("Invalid customer ID format");
+        return { success: false, error: "Invalid customer ID" };
+      }
+      
+      try {
+        await Customer.updateOne(
+          { _id: new mongoose.Types.ObjectId(saleData.customerId) },
+          {
+            $inc: {
+              totalPurchases: saleData.total,
+              loyaltyPoints: Math.floor(saleData.total / 10)
+            },
+            lastVisit: new Date()
+          }
+        );
+      } catch (customerError) {
+        console.error("Error updating customer loyalty points");
+        return { success: false, error: "Failed to update customer data" };
+      }
+    }
+    
+    return { success: true, sale: JSON.parse(JSON.stringify(sale)) };
+  } catch (error: any) {
+    console.error("Error creating sale");
+    return { success: false, error: "Failed to create sale" };
+  }
+});
+
+export async function updateSaleStatus(storeId: string, saleId: string, status: 'pending' | 'completed' | 'cancelled' | 'refunded') {
+  return withSubscriptionCheckByStoreId(async (storeId: string, saleId: string, status: string) => {
+    try {
+      await connectToDB();
+      
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(saleId)) {
+        return { success: false, error: "Invalid sale ID format" };
+      }
+      
+      // Validate ObjectId format for storeId
+      if (!mongoose.Types.ObjectId.isValid(storeId)) {
+        return { success: false, error: "Invalid store ID format" };
+      }
+      
+      // Validate status
+      const validStatuses = ['pending', 'completed', 'cancelled', 'refunded'];
+      if (!validStatuses.includes(status)) {
+        return { success: false, error: "Invalid status" };
+      }
+      
+      const sale = await Sale.findOneAndUpdate(
+        { 
+          _id: new mongoose.Types.ObjectId(saleId), 
+          storeId: new mongoose.Types.ObjectId(storeId) 
         },
-        lastVisit: new Date()
+        { status },
+        { new: true }
+      );
+      
+      if (!sale) {
+        return { success: false, error: "Sale not found" };
+      }
+      
+      return { success: true, sale: JSON.parse(JSON.stringify(sale)) };
+    } catch (error) {
+      console.error("Error updating sale status:", error);
+      return { success: false, error: "Failed to update sale status" };
+    }
+  })(storeId, saleId, status);
+}
+
+export async function getSaleDetails(storeId: string, saleId: string) {
+  return withSubscriptionCheckByStoreId(async (storeId: string, saleId: string) => {
+    try {
+      await connectToDB();
+      
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(saleId)) {
+        return null;
+      }
+      
+      // Validate ObjectId format for storeId
+      if (!mongoose.Types.ObjectId.isValid(storeId)) {
+        return null;
+      }
+      
+      const sale = await Sale.findOne({ 
+        _id: new mongoose.Types.ObjectId(saleId), 
+        storeId: new mongoose.Types.ObjectId(storeId) 
+      })
+        .populate('customerId', 'name email phone')
+        .populate('items.productId', 'name image')
+        .lean();
+      
+      return sale ? JSON.parse(JSON.stringify(sale)) : null;
+    } catch (error) {
+      console.error("Error fetching sale details:", error);
+      return null;
+    }
+  })(storeId, saleId);
+}
+
+export async function refundSale(storeId: string, saleId: string, refundAmount?: number) {
+  return withSubscriptionCheckByStoreId(async (storeId: string, saleId: string, refundAmount?: number) => {
+    try {
+      await connectToDB();
+      
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(saleId)) {
+        return { success: false, error: "Invalid sale ID format" };
+      }
+      
+      // Validate ObjectId format for storeId
+      if (!mongoose.Types.ObjectId.isValid(storeId)) {
+        return { success: false, error: "Invalid store ID format" };
+      }
+      
+      const sale = await Sale.findOne({ 
+        _id: new mongoose.Types.ObjectId(saleId), 
+        storeId: new mongoose.Types.ObjectId(storeId) 
       });
-    }
-    
-    return { success: true, sale: JSON.parse(JSON.stringify(sale)) };
-  } catch (error) {
-    console.error("Error creating sale:", error);
-    console.error("Sale data that failed:", saleData);
-    return { success: false, error: error.message || "Failed to create sale" };
-  }
-}
-
-export async function updateSaleStatus(saleId: string, status: 'pending' | 'completed' | 'cancelled' | 'refunded') {
-  try {
-    await connectToDB();
-    const sale = await Sale.findByIdAndUpdate(
-      saleId,
-      { status },
-      { new: true }
-    );
-    return { success: true, sale: JSON.parse(JSON.stringify(sale)) };
-  } catch (error) {
-    console.error("Error updating sale status:", error);
-    return { success: false, error: "Failed to update sale status" };
-  }
-}
-
-export async function getSaleDetails(saleId: string) {
-  try {
-    await connectToDB();
-    const sale = await Sale.findById(saleId)
-      .populate('customerId', 'name email phone')
-      .populate('items.productId', 'name image')
-      .lean();
-    return JSON.parse(JSON.stringify(sale));
-  } catch (error) {
-    console.error("Error fetching sale details:", error);
-    return null;
-  }
-}
-
-export async function refundSale(saleId: string, refundAmount?: number) {
-  try {
-    await connectToDB();
-    const sale = await Sale.findById(saleId);
-    if (!sale) {
-      return { success: false, error: "Sale not found" };
-    }
-    
-    const actualRefundAmount = refundAmount || sale.total;
-    
-    await Sale.findByIdAndUpdate(saleId, {
-      status: 'refunded',
-      paymentStatus: 'refunded'
-    });
-    
-    // Deduct from customer total purchases and loyalty points if customer exists
-    if (sale.customerId) {
-      await Customer.findByIdAndUpdate(sale.customerId, {
-        $inc: {
-          totalPurchases: -actualRefundAmount,
-          loyaltyPoints: -Math.floor(actualRefundAmount / 10)
+      if (!sale) {
+        return { success: false, error: "Sale not found" };
+      }
+      
+      // Validate refund eligibility
+      if (sale.status === 'refunded') {
+        return { success: false, error: "Sale already refunded" };
+      }
+      
+      if (sale.status === 'cancelled') {
+        return { success: false, error: "Cannot refund cancelled sale" };
+      }
+      
+      const actualRefundAmount = refundAmount || sale.total;
+      
+      // Validate refund amount
+      if (actualRefundAmount <= 0 || actualRefundAmount > sale.total) {
+        return { success: false, error: "Invalid refund amount" };
+      }
+      
+      await Sale.findOneAndUpdate(
+        { 
+          _id: new mongoose.Types.ObjectId(saleId), 
+          storeId: new mongoose.Types.ObjectId(storeId) 
+        },
+        {
+          status: 'refunded',
+          paymentStatus: 'refunded'
         }
-      });
+      );
+      
+      // Deduct from customer total purchases and loyalty points if customer exists
+      if (sale.customerId) {
+        if (!mongoose.Types.ObjectId.isValid(sale.customerId)) {
+          console.error("Invalid customer ID in sale record");
+          return { success: false, error: "Invalid customer data" };
+        }
+        
+        try {
+          await Customer.updateOne(
+            { _id: new mongoose.Types.ObjectId(sale.customerId) },
+            {
+              $inc: {
+                totalPurchases: -actualRefundAmount,
+                loyaltyPoints: -Math.floor(actualRefundAmount / 10)
+              }
+            }
+          );
+        } catch (customerError) {
+          console.error("Error updating customer loyalty points");
+          return { success: false, error: "Failed to update customer data" };
+        }
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error("Error refunding sale:", error);
+      return { success: false, error: "Failed to refund sale" };
     }
-    
-    return { success: true };
-  } catch (error) {
-    console.error("Error refunding sale:", error);
-    return { success: false, error: "Failed to refund sale" };
-  }
+  })(storeId, saleId, refundAmount);
 }
 
 export async function getTodaysSales(storeId: string, branchId: string) {
-  try {
-    await connectToDB();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const sales = await Sale.find({
-      storeId,
-      branchId,
-      createdAt: { $gte: today }
-    }).lean();
-    
-    const todaySales = sales.length;
-    const todayRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
-    
-    return { todaySales, todayRevenue };
-  } catch (error) {
-    console.error("Error fetching today's sales:", error);
-    return { todaySales: 0, todayRevenue: 0 };
-  }
+  return withSubscriptionCheckByStoreId(async (storeId: string, branchId: string) => {
+    try {
+      await connectToDB();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const sales = await Sale.find({
+        storeId: new mongoose.Types.ObjectId(storeId),
+        branchId: new mongoose.Types.ObjectId(branchId),
+        createdAt: { $gte: today }
+      }).lean();
+      
+      const todaySales = sales.length;
+      const todayRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
+      
+      return { todaySales, todayRevenue };
+    } catch (error) {
+      console.error("Error fetching today's sales:", error);
+      return { todaySales: 0, todayRevenue: 0 };
+    }
+  })(storeId, branchId);
 }

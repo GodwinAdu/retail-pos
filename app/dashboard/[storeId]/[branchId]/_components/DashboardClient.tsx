@@ -18,7 +18,8 @@ import {
     Zap,
     Target,
     LogOut,
-    CreditCard
+    CreditCard,
+    Store
 } from "lucide-react";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -36,6 +37,7 @@ import BillingBanner from "./BillingBanner";
 import LowStockAlert from "@/components/LowStockAlert";
 import { getDashboardData } from "@/lib/actions/dashboard.actions";
 import { toast } from "sonner";
+import { InventoryAlertsWidget, TopSellingWidget, RevenueSummaryWidget, OfflineStatusWidget } from "@/components/DashboardWidgets";
 
 interface DashboardClientProps {
     params: {
@@ -332,8 +334,14 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                         <div className="text-3xl font-bold text-gray-900 mb-1">{dashboardData.sales.today}</div>
                         <p className="text-gray-600 text-sm">Sales Count</p>
                         <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-blue-600 h-2 rounded-full" style={{width: '75%'}}></div>
+                            <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-1000" 
+                                style={{width: `${Math.min(100, (dashboardData.sales.today / (dashboardData.sales.target || 50)) * 100)}%`}}
+                            ></div>
                         </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {dashboardData.sales.today} / {dashboardData.sales.target || 50} target
+                        </p>
                     </motion.div>
 
                     <motion.div 
@@ -354,8 +362,14 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                         <div className="text-3xl font-bold text-gray-900 mb-1">GH₵{dashboardData.revenue.today.toLocaleString()}</div>
                         <p className="text-gray-600 text-sm">Total Revenue</p>
                         <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-green-600 h-2 rounded-full" style={{width: '85%'}}></div>
+                            <div 
+                                className="bg-green-600 h-2 rounded-full transition-all duration-1000" 
+                                style={{width: `${Math.min(100, (dashboardData.revenue.today / (dashboardData.revenue.target || 10000)) * 100)}%`}}
+                            ></div>
                         </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            GH₵{dashboardData.revenue.today.toLocaleString()} / GH₵{(dashboardData.revenue.target || 10000).toLocaleString()} target
+                        </p>
                     </motion.div>
 
                     <motion.div 
@@ -376,8 +390,14 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                         <div className="text-3xl font-bold text-gray-900 mb-1">{dashboardData.products.lowStock}</div>
                         <p className="text-gray-600 text-sm">Low Stock Items</p>
                         <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-orange-600 h-2 rounded-full" style={{width: '40%'}}></div>
+                            <div 
+                                className="bg-orange-600 h-2 rounded-full transition-all duration-1000" 
+                                style={{width: `${Math.min(100, (dashboardData.products.lowStock / (dashboardData.products.total || 100)) * 100)}%`}}
+                            ></div>
                         </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {dashboardData.products.lowStock} / {dashboardData.products.total || 100} products
+                        </p>
                     </motion.div>
 
                     <motion.div 
@@ -398,8 +418,14 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                         <div className="text-3xl font-bold text-gray-900 mb-1">{dashboardData.customers.total}</div>
                         <p className="text-gray-600 text-sm">Total Customers</p>
                         <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-purple-600 h-2 rounded-full" style={{width: '90%'}}></div>
+                            <div 
+                                className="bg-purple-600 h-2 rounded-full transition-all duration-1000" 
+                                style={{width: `${Math.min(100, (dashboardData.customers.total / (dashboardData.customers.goal || 1000)) * 100)}%`}}
+                            ></div>
                         </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {dashboardData.customers.total} / {dashboardData.customers.goal || 1000} goal
+                        </p>
                     </motion.div>
                 </div>
 
@@ -407,6 +433,17 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column - Charts & Analytics */}
                     <div className="lg:col-span-2 space-y-6">
+                        {/* New Feature Widgets Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <InventoryAlertsWidget storeId={params.storeId} branchId={params.branchId} />
+                            <TopSellingWidget storeId={params.storeId} branchId={params.branchId} />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <RevenueSummaryWidget storeId={params.storeId} branchId={params.branchId} />
+                            <OfflineStatusWidget storeId={params.storeId} branchId={params.branchId} />
+                        </div>
+
                         {/* Performance Overview */}
                         <motion.div 
                             className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg"
@@ -524,11 +561,25 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                                         </Button>
                                     </Link>
                                 )}
+                                <Link href={`/dashboard/${params.storeId}/${params.branchId}/suppliers`}>
+                                    <Button variant="outline" className="w-full h-16 flex-col space-y-2 hover:bg-yellow-50 hover:border-yellow-200">
+                                        <Package className="w-5 h-5" />
+                                        <span className="text-xs">Suppliers</span>
+                                    </Button>
+                                </Link>
                                 {hasPermission(PERMISSIONS.VIEW_SALES) && (
                                     <Link href={`/dashboard/${params.storeId}/${params.branchId}/sales`}>
                                         <Button variant="outline" className="w-full h-16 flex-col space-y-2 hover:bg-purple-50 hover:border-purple-200">
                                             <DollarSign className="w-5 h-5" />
                                             <span className="text-xs">Sales</span>
+                                        </Button>
+                                    </Link>
+                                )}
+                                {userRole === 'owner' && (
+                                    <Link href={`/dashboard/${params.storeId}/branches`}>
+                                        <Button variant="outline" className="w-full h-16 flex-col space-y-2 hover:bg-indigo-50 hover:border-indigo-200">
+                                            <Store className="w-5 h-5" />
+                                            <span className="text-xs">Branches</span>
                                         </Button>
                                     </Link>
                                 )}
@@ -556,6 +607,12 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                                         </Button>
                                     </Link>
                                 )}
+                                <Link href={`/dashboard/${params.storeId}/${params.branchId}/marketing`}>
+                                    <Button variant="outline" className="w-full h-16 flex-col space-y-2 hover:bg-pink-50 hover:border-pink-200">
+                                        <TrendingUp className="w-5 h-5" />
+                                        <span className="text-xs">Marketing</span>
+                                    </Button>
+                                </Link>
                             </div>
                         </motion.div>
 

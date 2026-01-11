@@ -6,7 +6,6 @@ import { ArrowLeft, CreditCard, Building2, Calendar, CheckCircle, AlertCircle } 
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getBillingInfo, initializePayment } from "@/lib/actions/billing.actions";
-import { getBranches } from "@/lib/actions/branch.actions";
 import { toast } from "sonner";
 
 interface BillingClientProps {
@@ -25,14 +24,12 @@ export default function BillingClient({ params, user }: BillingClientProps) {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [billing, branchData] = await Promise.all([
-                    getBillingInfo(params.storeId),
-                    getBranches(params.storeId)
-                ]);
+                const billing = await getBillingInfo(params.storeId);
                 setBillingInfo(billing);
-                setBranches(branchData);
+                setBranches(billing.branches || []);
             } catch (error) {
                 console.error("Error fetching billing data:", error);
+                setBranches([]);
             } finally {
                 setLoading(false);
             }
