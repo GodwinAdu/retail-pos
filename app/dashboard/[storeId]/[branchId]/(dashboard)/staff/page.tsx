@@ -13,8 +13,8 @@ export default async function StaffPage({ params }: StaffPageProps) {
     const { storeId, branchId } = await params;
 
     const [staff, stats, user] = await Promise.all([
-        getStaffMembers(branchId),
-        getStaffStats(branchId),
+        getStaffMembers(storeId, branchId),
+        getStaffStats(storeId, branchId),
         getCurrentUser()
     ]);
 
