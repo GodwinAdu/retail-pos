@@ -96,6 +96,7 @@ export default function SettingsClient({ user, store, branch, storeId, branchId 
 
         try {
             await updateBranchSettings(branchId, {
+                storeId,
                 ...branchData,
                 posSettings,
                 inventorySettings
@@ -404,7 +405,22 @@ export default function SettingsClient({ user, store, branch, storeId, branchId 
                                 />
                             </div>
                         </div>
-                        <Button onClick={handleBranchUpdate} disabled={loading.branch} className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                        <Button onClick={() => {
+                            setLoading(prev => ({ ...prev, branch: true }));
+                            updateBranchSettings(branchId, {
+                                storeId,
+                                ...branchData,
+                                posSettings,
+                                inventorySettings,
+                            }).then(() => {
+                                router.refresh();
+                            }).catch((error) => {
+                                console.error("Error updating branch:", error);
+                                alert("Failed to update branch settings");
+                            }).finally(() => {
+                                setLoading(prev => ({ ...prev, branch: false }));
+                            });
+                        }} disabled={loading.branch} className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-700 shadow-lg hover:shadow-xl transition-all duration-300">
                             {loading.branch ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             Save POS Settings
                         </Button>
@@ -465,7 +481,22 @@ export default function SettingsClient({ user, store, branch, storeId, branchId 
                                 />
                             </div>
                         </div>
-                        <Button onClick={handleBranchUpdate} disabled={loading.branch} className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                        <Button onClick={() => {
+                            setLoading(prev => ({ ...prev, branch: true }));
+                            updateBranchSettings(branchId, {
+                                storeId,
+                                ...branchData,
+                                posSettings,
+                                inventorySettings
+                            }).then(() => {
+                                router.refresh();
+                            }).catch((error) => {
+                                console.error("Error updating branch:", error);
+                                alert("Failed to update branch settings");
+                            }).finally(() => {
+                                setLoading(prev => ({ ...prev, branch: false }));
+                            });
+                        }} disabled={loading.branch} className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300">
                             {loading.branch ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             Save Inventory Settings
                         </Button>
