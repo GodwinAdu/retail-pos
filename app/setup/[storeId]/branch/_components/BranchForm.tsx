@@ -49,6 +49,8 @@ export default function BranchForm({ storeId }: BranchFormProps) {
             
             if (result.success) {
                 router.push(`/dashboard/${storeId}/${result.branch._id}`);
+            } else {
+                setError(result.error || "Failed to create branch");
             }
         } catch (error: any) {
             setError(error.message || "Failed to create branch");
