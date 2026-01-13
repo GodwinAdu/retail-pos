@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         const event = JSON.parse(body);
 
         if (event.event === "charge.success") {
-            const { reference, amount, metadata, paid_at, gateway_response } = event.data;
+            const { reference, amount, metadata, paid_at, id } = event.data;
             const { storeId } = metadata;
 
             await connectToDB();
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
                     status: 'success',
                     paymentMethod: 'paystack',
                     paidAt: new Date(paid_at),
-                    gateway_response
+                    transactionId: id || reference
                 };
 
                 store.paymentHistory.push(paymentRecord);
