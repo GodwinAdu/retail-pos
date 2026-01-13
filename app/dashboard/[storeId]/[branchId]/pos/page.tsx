@@ -107,7 +107,7 @@ export default function POSPage() {
             try {
                 const [productsData, customersData, salesData, userData] = await Promise.all([
                     getProducts(storeId, branchId),
-                    getCustomers(storeId),
+                    getCustomers(storeId, branchId),
                     getTodaysSales(storeId, branchId),
                     getCurrentUser()
                 ]);
@@ -234,12 +234,12 @@ export default function POSPage() {
                 customerPhone: selectedCustomer?.phone
             };
 
-            const result = await createSale(saleData);
+            const result = await createSale(storeId,saleData);
             
             if (result.success) {
                 // Update product stock
                 for (const item of cart) {
-                    await updateProductStock(item._id, item.quantity);
+                    await updateProductStock(storeId, item._id, item.quantity);
                 }
                 
                 // Update customer loyalty points
@@ -291,7 +291,7 @@ export default function POSPage() {
         }
         
         try {
-            const product = await getProductByBarcode(barcodeInput, storeId);
+            const product = await getProductByBarcode(storeId, barcodeInput);
             if (product) {
                 addToCart(product);
                 setBarcodeInput("");
@@ -324,11 +324,11 @@ export default function POSPage() {
         if (newCustomer.name && newCustomer.email) {
             try {
                 const customerData = {
-                    storeId,
+                    branchId,
                     ...newCustomer
                 };
                 
-                const customer = await createCustomer(customerData);
+                const customer = await createCustomer(storeId, customerData);
                 
                 if (customer) {
                     setCustomers(prev => [...prev, customer]);
@@ -557,7 +557,10 @@ export default function POSPage() {
                                         <Button 
                                             onClick={async () => {
                                                 try {
-                                                    await updateBranchSettings(branchId, { posSettings: tempSettings });
+                                                    await updateBranchSettings(branchId, {
+                                        storeId,
+                                        posSettings: tempSettings
+                                    });
                                                     await refreshSettings();
                                                     soundManager.setEnabled(tempSettings.soundEffects);
                                                     toast.success("Settings saved successfully");

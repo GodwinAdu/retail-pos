@@ -56,7 +56,7 @@ export const deleteProduct = withSubscriptionCheckByStoreId(async (storeId: stri
   }
 });
 
-export async function getProductByBarcode(barcode: string, storeId: string) {
+export const getProductByBarcode = withSubscriptionCheckByStoreId(async (storeId: string, barcode: string) => {
   try {
     await connectToDB();
     const product = await Product.findOne({ barcode, storeId }).lean();
@@ -65,7 +65,7 @@ export async function getProductByBarcode(barcode: string, storeId: string) {
     console.error("Error fetching product by barcode:", error);
     return null;
   }
-}
+});
 
 export const updateProductStock = withSubscriptionCheckByStoreId(async (storeId: string, productId: string, quantity: number) => {
   try {
