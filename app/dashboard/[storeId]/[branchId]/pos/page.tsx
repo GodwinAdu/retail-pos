@@ -25,6 +25,7 @@ import { useSettings } from "@/lib/contexts/SettingsContext";
 import { SettingsValidator } from "@/lib/utils/settings-validator";
 import { useCartStore } from "@/lib/stores/cart-store";
 import { soundManager } from "@/lib/utils/sounds";
+import ProductVariationDialog from "@/components/ProductVariationDialog";
 
 interface Customer {
     _id: string;
@@ -37,12 +38,15 @@ interface Customer {
 
 interface CartItem {
     id: number;
+    _id: string;
     name: string;
     price: number;
     quantity: number;
     category: string;
     stock: number;
     image: string;
+    originalProductId?: string;
+    variationName?: string;
 }
 
 export default function POSPage() {
@@ -76,6 +80,8 @@ export default function POSPage() {
     const [loading, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
     const [tempSettings, setTempSettings] = useState(posSettings);
+    const [showVariationDialog, setShowVariationDialog] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -140,6 +146,13 @@ export default function POSPage() {
     });
 
     const addToCart = (product: any) => {
+        // Check if product has variations
+        if (product.variations && product.variations.length > 0 && product.variations.some((v: any) => v.isAvailable)) {
+            setSelectedProduct(product);
+            setShowVariationDialog(true);
+            return;
+        }
+
         const stockValidation = SettingsValidator.validateStock(1, product.stock, inventorySettings);
         if (!stockValidation.isValid) {
             toast.error(stockValidation.message);
@@ -159,6 +172,31 @@ export default function POSPage() {
         if (posSettings.soundEffects) {
             soundManager.addToCart();
         }
+    };
+
+    const handleVariationSelect = (variation: any) => {
+        if (!selectedProduct) return;
+
+        const productWithVariation = {
+            ...selectedProduct,
+            _id: `${selectedProduct._id}_${variation.name}`,
+            originalProductId: selectedProduct._id,
+            price: variation.price,
+            name: `${selectedProduct.name} (${variation.name})`,
+            variationName: variation.name
+        };
+
+        const stockValidation = SettingsValidator.validateStock(1, productWithVariation.stock, inventorySettings);
+        if (!stockValidation.isValid) {
+            toast.error(stockValidation.message);
+            return;
+        }
+
+        addItem(productWithVariation);
+        if (posSettings.soundEffects) {
+            soundManager.addToCart();
+        }
+        toast.success(`Added ${productWithVariation.name} to cart`);
     };
 
     const handleQuantityChange = (id: string, change: number) => {
@@ -216,12 +254,17 @@ export default function POSPage() {
             const saleData = {
                 storeId,
                 branchId,
-                items: cart.map(item => ({
-                    productId: item._id,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity
-                })),
+                items: cart.map(item => {
+                    // Extract the original product ID (remove variation suffix if present)
+                    const productId = item.originalProductId || (item._id.includes('_') ? item._id.split('_')[0] : item._id);
+                    return {
+                        productId,
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.quantity,
+                        variations: item.variationName ? [item.variationName] : []
+                    };
+                }),
                 subtotal,
                 tax: taxType === 'percentage' ? (subtotal * tax) / 100 : tax,
                 taxType,
@@ -239,7 +282,9 @@ export default function POSPage() {
             if (result.success) {
                 // Update product stock
                 for (const item of cart) {
-                    await updateProductStock(storeId, item._id, item.quantity);
+                    // Extract the original product ID (remove variation suffix if present)
+                    const productId = item.originalProductId || (item._id.includes('_') ? item._id.split('_')[0] : item._id);
+                    await updateProductStock(storeId, productId, item.quantity);
                 }
                 
                 // Update customer loyalty points
@@ -1222,6 +1267,14 @@ export default function POSPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Product Variation Dialog */}
+            <ProductVariationDialog
+                product={selectedProduct}
+                open={showVariationDialog}
+                onOpenChange={setShowVariationDialog}
+                onSelectVariation={handleVariationSelect}
+            />
         </div>
     );
 }

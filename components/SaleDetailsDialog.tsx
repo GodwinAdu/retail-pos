@@ -96,7 +96,7 @@ export default function SaleDetailsDialog({ saleId, open, onOpenChange, onSaleUp
                   <CardTitle className="text-white flex items-center justify-between">
                     Sale Information
                     <Badge className={`${getStatusColor(sale.status)} border-0`}>
-                      {sale.status.toUpperCase()}
+                      {sale.status?.toUpperCase() || 'UNKNOWN'}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
@@ -136,24 +136,24 @@ export default function SaleDetailsDialog({ saleId, open, onOpenChange, onSaleUp
                 <CardContent className="space-y-4">
                   <div className="flex justify-between">
                     <span className="text-gray-300">Subtotal:</span>
-                    <span className="text-white">GH₵{sale.subtotal.toFixed(2)}</span>
+                    <span className="text-white">GH₵{(sale.subtotal || 0).toFixed(2)}</span>
                   </div>
-                  {sale.discount > 0 && (
+                  {(sale.discount || 0) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-300">Discount:</span>
-                      <span className="text-red-400">-GH₵{sale.discount.toFixed(2)}</span>
+                      <span className="text-red-400">-GH₵{(sale.discount || 0).toFixed(2)}</span>
                     </div>
                   )}
-                  {sale.tax > 0 && (
+                  {(sale.tax || 0) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-300">Tax:</span>
-                      <span className="text-white">GH₵{sale.tax.toFixed(2)}</span>
+                      <span className="text-white">GH₵{(sale.tax || 0).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="border-t border-slate-600 pt-2">
                     <div className="flex justify-between">
                       <span className="text-white font-semibold">Total:</span>
-                      <span className="text-white font-semibold text-lg">GH₵{sale.total.toFixed(2)}</span>
+                      <span className="text-white font-semibold text-lg">GH₵{(sale.total || 0).toFixed(2)}</span>
                     </div>
                   </div>
                   <Badge className={`${
@@ -161,7 +161,7 @@ export default function SaleDetailsDialog({ saleId, open, onOpenChange, onSaleUp
                     sale.paymentStatus === 'partial' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-red-500/20 text-red-400'
                   } border-0`}>
-                    {sale.paymentStatus.toUpperCase()}
+                    {sale.paymentStatus?.toUpperCase() || 'PENDING'}
                   </Badge>
                 </CardContent>
               </Card>
@@ -171,17 +171,17 @@ export default function SaleDetailsDialog({ saleId, open, onOpenChange, onSaleUp
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
                   <Package className="w-5 h-5 mr-2" />
-                  Items ({sale.items.length})
+                  Items ({sale.items?.length || 0})
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {sale.items.map((item, index) => (
+                  {(sale.items || []).map((item, index) => (
                     <div key={index} className="flex justify-between items-center p-3 bg-slate-700 rounded-lg">
                       <div>
                         <p className="text-white font-medium">{item.name}</p>
                         <p className="text-gray-400 text-sm">
-                          Qty: {item.quantity} × GH₵{item.price.toFixed(2)}
+                          Qty: {item.quantity} × GH₵{(item.price || 0).toFixed(2)}
                           {item.variations && item.variations.length > 0 && (
                             <span className="ml-2">({item.variations.join(', ')})</span>
                           )}
@@ -189,7 +189,7 @@ export default function SaleDetailsDialog({ saleId, open, onOpenChange, onSaleUp
                       </div>
                       <div className="text-right">
                         <p className="text-white font-semibold">
-                          GH₵{(item.price * item.quantity - (item.discount || 0)).toFixed(2)}
+                          GH₵{((item.price || 0) * item.quantity - (item.discount || 0)).toFixed(2)}
                         </p>
                         {item.discount && item.discount > 0 && (
                           <p className="text-red-400 text-sm">-GH₵{item.discount.toFixed(2)}</p>

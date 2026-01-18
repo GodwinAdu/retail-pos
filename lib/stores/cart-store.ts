@@ -9,6 +9,8 @@ interface CartItem {
   stock: number;
   category?: string;
   image?: string;
+  originalProductId?: string;
+  variationName?: string;
 }
 
 interface CartStore {

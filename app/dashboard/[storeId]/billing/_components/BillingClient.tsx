@@ -7,19 +7,19 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { getBillingInfo, initializePayment } from "@/lib/actions/billing.actions";
 import { toast } from "sonner";
+import { useParams } from "next/navigation";
 
 interface BillingClientProps {
-    params: {
-        storeId: string;
-    };
     user: any;
 }
 
-export default function BillingClient({ params, user }: BillingClientProps) {
+export default function BillingClient({  user }: BillingClientProps) {
     const [billingInfo, setBillingInfo] = useState<any>(null);
     const [branches, setBranches] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [paymentLoading, setPaymentLoading] = useState(false);
+
+    const params = useParams<{ storeId: string; branchId: string }>();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -73,8 +73,8 @@ export default function BillingClient({ params, user }: BillingClientProps) {
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
-                            <Link href={`/dashboard/${params.storeId}`}>
-                                <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
+                            <Link href={`/dashboard/${params.storeId}/${params.branchId}`}>
+                                <Button variant="outline" size="sm" >
                                     <ArrowLeft className="w-4 h-4 mr-2" />
                                     Back to Dashboard
                                 </Button>

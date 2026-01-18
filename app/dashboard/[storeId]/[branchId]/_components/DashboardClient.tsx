@@ -51,11 +51,21 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
     const { hasPermission, userRole } = usePermissions(user);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
-        from: new Date(),
-        to: new Date()
+    const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() => {
+        const today = new Date();
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        firstDayOfMonth.setHours(0, 0, 0, 0);
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 59, 999);
+        return { from: firstDayOfMonth, to: endOfToday };
     });
     const [calendarOpen, setCalendarOpen] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(`lastBranch_${params.storeId}`, params.branchId);
+        }
+    }, [params.storeId, params.branchId]);
 
     const loadDashboardData = async () => {
         setLoading(true);
@@ -76,17 +86,20 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
 
     const handleDateRangeSelect = (range: any) => {
         if (range?.from) {
-            setDateRange({
-                from: range.from,
-                to: range.to || range.from
-            });
+            const from = new Date(range.from);
+            from.setHours(0, 0, 0, 0);
+            const to = range.to ? new Date(range.to) : new Date(range.from);
+            to.setHours(23, 59, 59, 999);
+            setDateRange({ from, to });
         }
         setCalendarOpen(false);
     };
 
     const setQuickRange = (days: number) => {
         const to = new Date();
+        to.setHours(23, 59, 59, 999);
         const from = subDays(to, days - 1);
+        from.setHours(0, 0, 0, 0);
         setDateRange({ from, to });
     };
 
@@ -264,6 +277,14 @@ export default function DashboardClient({ params, user }: DashboardClientProps) 
                                             <Button size="sm" variant="outline" onClick={() => setQuickRange(1)}>Today</Button>
                                             <Button size="sm" variant="outline" onClick={() => setQuickRange(7)}>7 days</Button>
                                             <Button size="sm" variant="outline" onClick={() => setQuickRange(30)}>30 days</Button>
+                                            <Button size="sm" variant="outline" onClick={() => {
+                                                const today = new Date();
+                                                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                                                firstDay.setHours(0, 0, 0, 0);
+                                                const endOfToday = new Date();
+                                                endOfToday.setHours(23, 59, 59, 999);
+                                                setDateRange({ from: firstDay, to: endOfToday });
+                                            }}>This Month</Button>
                                         </div>
                                     </div>
                                     <CalendarComponent

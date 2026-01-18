@@ -163,7 +163,7 @@ export default function CustomersClient({ storeId, branchId, initialCustomers, i
                       className="pl-10 bg-slate-800 border-slate-600 text-white"
                     />
                   </div>
-                  <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
+                  <Button variant="outline" size="sm" >
                     <Filter className="w-4 h-4 mr-2" />
                     Filter
                   </Button>

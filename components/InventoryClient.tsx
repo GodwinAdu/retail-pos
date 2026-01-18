@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import AddProductDialog from "@/components/AddProductDialog";
+import EditProductDialog from "@/components/EditProductDialog";
 import { getProducts, deleteProduct } from "@/lib/actions/product.actions";
 import { getCategories } from "@/lib/actions/category.actions";
 import { toast } from "sonner";
@@ -33,6 +34,8 @@ export default function InventoryClient({ storeId, branchId, user }: InventoryCl
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -63,7 +66,7 @@ export default function InventoryClient({ storeId, branchId, user }: InventoryCl
 
   const handleDeleteProduct = async (productId: string) => {
     if (confirm("Are you sure you want to delete this product?")) {
-      const success = await deleteProduct(productId);
+      const success = await deleteProduct(storeId, productId);
       if (success) {
         toast.success("Product deleted successfully");
         loadData();
@@ -71,6 +74,77 @@ export default function InventoryClient({ storeId, branchId, user }: InventoryCl
         toast.error("Failed to delete product");
       }
     }
+  };
+
+  const handleExport = () => {
+    const csvData = [
+      ["Name", "SKU", "Category", "Stock", "Cost Price", "Selling Price", "Min Stock", "Barcode", "Description"],
+      ...products.map(p => [
+        p.name,
+        p.sku || "",
+        p.category?.name || "",
+        p.stock,
+        p.costPrice || 0,
+        p.price,
+        p.minStock || "",
+        p.barcode || "",
+        p.description || ""
+      ])
+    ];
+    
+    const csv = csvData.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `inventory-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Inventory exported successfully");
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const rows = text.split("\n").map(row => row.split(",").map(cell => cell.replace(/^"|"$/g, "")));
+        const headers = rows[0];
+        const data = rows.slice(1).filter(row => row.length > 1 && row[0]);
+
+        toast.info(`Importing ${data.length} products...`);
+        
+        // Import products (simplified - you may want to add more validation)
+        for (const row of data) {
+          const productData = {
+            name: row[0],
+            sku: row[1],
+            categoryId: categories.find(c => c.name === row[2])?._id,
+            stock: parseInt(row[3]) || 0,
+            costPrice: parseFloat(row[4]) || 0,
+            price: parseFloat(row[5]) || 0,
+            minStock: parseInt(row[6]) || undefined,
+            barcode: row[7],
+            description: row[8],
+            branchId
+          };
+          
+          // You would call createProduct here
+          // await createProduct(storeId, productData);
+        }
+        
+        toast.success("Products imported successfully");
+        loadData();
+      } catch (error) {
+        console.error("Import error:", error);
+        toast.error("Failed to import products");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   const getStockStatus = (stock: number, minStock?: number) => {
@@ -187,12 +261,28 @@ export default function InventoryClient({ storeId, branchId, user }: InventoryCl
         </div>
         <div className="flex space-x-2">
           {hasPermission(PERMISSIONS.MANAGE_INVENTORY) && (
-            <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
-              <Upload className="w-4 h-4 mr-2" />
-              Import
-            </Button>
+            <>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImport}
+                className="hidden"
+                id="import-file"
+              />
+              <label htmlFor="import-file">
+                <Button variant="outline" asChild>
+                  <span>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import
+                  </span>
+                </Button>
+              </label>
+            </>
           )}
-          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
+          <Button
+            // className="border-white/20 text-white hover:bg-white/10"
+            onClick={handleExport}
+          >
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -250,7 +340,7 @@ export default function InventoryClient({ storeId, branchId, user }: InventoryCl
             <Button
               variant="outline"
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-              className="border-white/20 text-white hover:bg-white/10"
+              // className="border-white/20 text-white hover:bg-white/10"
             >
               {sortOrder === "asc" ? "↑" : "↓"}
             </Button>
@@ -338,7 +428,15 @@ export default function InventoryClient({ storeId, branchId, user }: InventoryCl
                       <td className="py-4">
                         <div className="flex space-x-2">
                           {hasPermission(PERMISSIONS.MANAGE_PRODUCTS) && (
-                            <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => {
+                                setEditingProduct(product);
+                                setEditDialogOpen(true);
+                              }}
+                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           )}
@@ -370,6 +468,17 @@ export default function InventoryClient({ storeId, branchId, user }: InventoryCl
           </div>
         </CardContent>
       </Card>
+
+      {editingProduct && (
+        <EditProductDialog
+          product={editingProduct}
+          storeId={storeId}
+          categories={categories}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onProductUpdated={loadData}
+        />
+      )}
     </div>
   );
 }

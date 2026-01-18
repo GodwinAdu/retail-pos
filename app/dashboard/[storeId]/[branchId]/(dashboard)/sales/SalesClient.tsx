@@ -28,11 +28,17 @@ interface SalesClientProps {
 }
 
 export default function SalesClient({ storeId, branchId, initialSales, initialStats }: SalesClientProps) {
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const today = new Date();
+  
   const [sales, setSales] = useState<ISale[]>(initialSales);
   const [stats, setStats] = useState(initialStats);
   const [filteredSales, setFilteredSales] = useState<ISale[]>(initialSales);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState(oneMonthAgo.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,13 +60,17 @@ export default function SalesClient({ storeId, branchId, initialSales, initialSt
   const refreshData = async () => {
     setLoading(true);
     const [newSales, newStats] = await Promise.all([
-      getSales(storeId, branchId, 50),
-      getSaleStats(storeId, branchId)
+      getSales(storeId, branchId, 50, startDate, endDate),
+      getSaleStats(storeId, branchId, startDate, endDate)
     ]);
     setSales(newSales);
     setStats(newStats);
     setLoading(false);
   };
+
+  useEffect(() => {
+    refreshData();
+  }, [startDate, endDate]);
 
   const handleViewDetails = (saleId: string) => {
     setSelectedSaleId(saleId);
@@ -121,7 +131,22 @@ export default function SalesClient({ storeId, branchId, initialSales, initialSt
               <h1 className="text-3xl font-bold text-white">Sales Management</h1>
               <p className="text-gray-300 mt-1">Track and manage all sales transactions</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-slate-800 border-slate-600 text-white w-40"
+                />
+                <span className="text-gray-400">to</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-slate-800 border-slate-600 text-white w-40"
+                />
+              </div>
               <CreateSaleDialog 
                 storeId={storeId}
                 branchId={branchId}
@@ -129,7 +154,6 @@ export default function SalesClient({ storeId, branchId, initialSales, initialSt
               />
               <Button 
                 variant="outline" 
-                className="border-white/20 text-white hover:bg-white/10"
                 onClick={exportSales}
               >
                 <Download className="w-4 h-4 mr-2" />
@@ -137,7 +161,6 @@ export default function SalesClient({ storeId, branchId, initialSales, initialSt
               </Button>
               <Button 
                 variant="outline" 
-                className="border-white/20 text-white hover:bg-white/10"
                 onClick={refreshData}
                 disabled={loading}
               >
@@ -156,10 +179,10 @@ export default function SalesClient({ storeId, branchId, initialSales, initialSt
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-300 text-sm">Today's Sales</p>
+                    <p className="text-gray-300 text-sm">Period Sales</p>
                     <p className="text-2xl font-bold text-white">GH₵{stats.todayRevenue.toFixed(0)}</p>
                     <p className={`text-sm ${stats.revenueGrowth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {formatGrowth(stats.revenueGrowth)} from yesterday
+                      {stats.revenueGrowth > 0 ? formatGrowth(stats.revenueGrowth) : 'Selected period'}
                     </p>
                   </div>
                   <DollarSign className="w-8 h-8 text-green-400" />
@@ -200,7 +223,11 @@ export default function SalesClient({ storeId, branchId, initialSales, initialSt
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-300 text-sm">This Month</p>
-                    <p className="text-2xl font-bold text-white">GH₵{(stats.thisMonthRevenue / 1000).toFixed(0)}K</p>
+                    <p className="text-2xl font-bold text-white">
+                      GH₵{stats.thisMonthRevenue >= 1000 
+                        ? `${(stats.thisMonthRevenue / 1000).toFixed(1)}K` 
+                        : stats.thisMonthRevenue.toFixed(2)}
+                    </p>
                     <p className="text-orange-400 text-sm">Total revenue</p>
                   </div>
                   <Calendar className="w-8 h-8 text-orange-400" />

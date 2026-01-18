@@ -38,12 +38,7 @@ export default function CreateCategoryDialog({ storeId, onCategoryCreated }: Cre
 
     setLoading(true);
     try {
-      const categoryData = {
-        ...formData,
-        store: storeId
-      };
-      
-      const category = await createCategory(categoryData);
+      const category = await createCategory(storeId, formData);
       
       if (category) {
         toast.success("Category created successfully");

@@ -2,34 +2,29 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Tag, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { getCategories, createCategory } from "@/lib/actions/category.actions";
-import { createProduct } from "@/lib/actions/product.actions";
+import { updateProduct } from "@/lib/actions/product.actions";
 import { getSuppliers } from "@/lib/actions/supplier.actions";
-import CreateCategoryDialog from "@/components/CreateCategoryDialog";
-import { useSettings } from "@/lib/contexts/SettingsContext";
-import { useSubscriptionHandler } from "@/hooks/use-subscription-handler";
 
-interface AddProductDialogProps {
+interface EditProductDialogProps {
+  product: any;
   storeId: string;
-  branchId: string;
-  onProductAdded?: () => void;
+  categories: any[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onProductUpdated: () => void;
 }
 
-export default function AddProductDialog({ storeId, branchId, onProductAdded }: AddProductDialogProps) {
-  const { inventorySettings } = useSettings();
-  const { executeWithSubscriptionCheck } = useSubscriptionHandler();
-  const [open, setOpen] = useState(false);
+export default function EditProductDialog({ product, storeId, categories, open, onOpenChange, onProductUpdated }: EditProductDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
@@ -50,93 +45,92 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
   });
 
   useEffect(() => {
-    const loadData = async () => {
-      const [categoriesData, suppliersData] = await Promise.all([
-        getCategories(storeId),
-        getSuppliers(storeId)
-      ]);
-      setCategories(categoriesData);
+    const loadSuppliers = async () => {
+      const suppliersData = await getSuppliers(storeId);
       setSuppliers(suppliersData);
     };
     if (open) {
-      loadData();
+      loadSuppliers();
     }
   }, [open, storeId]);
 
+  useEffect(() => {
+    if (product && open) {
+      setFormData({
+        name: product.name || "",
+        sku: product.sku || "",
+        category: product.categoryId || product.category?._id || "",
+        price: product.price?.toString() || "",
+        stock: product.stock?.toString() || "",
+        description: product.description || "",
+        barcode: product.barcode || "",
+        minStock: product.minStock?.toString() || "",
+        maxStock: product.maxStock?.toString() || "",
+        costPrice: product.costPrice?.toString() || "",
+        reorderPoint: product.reorderPoint?.toString() || "",
+        supplier: product.supplier || "",
+        expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : "",
+        batchNumber: product.batchNumber || "",
+        isPerishable: product.isPerishable || false,
+        variations: product.variations?.map((v: any) => ({
+          name: v.name,
+          price: v.price?.toString() || "",
+          isAvailable: v.isAvailable ?? true
+        })) || []
+      });
+    }
+  }, [product, open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.sku || !formData.category || !formData.price || !formData.stock) {
-      toast.error("Name, SKU, category, price, and stock are required");
-      return;
-    }
-
     setLoading(true);
     
-    const result = await executeWithSubscriptionCheck(async () => {
+    try {
       const productData = {
-        ...formData,
+        name: formData.name,
+        sku: formData.sku,
+        categoryId: formData.category,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
-        minStock: formData.minStock ? parseInt(formData.minStock) : inventorySettings.lowStockThreshold,
-        maxStock: formData.maxStock ? parseInt(formData.maxStock) : 100,
-        reorderPoint: formData.reorderPoint ? parseInt(formData.reorderPoint) : 10,
-        costPrice: formData.costPrice ? parseFloat(formData.costPrice) : 0,
+        description: formData.description,
+        barcode: formData.barcode,
+        minStock: formData.minStock ? parseInt(formData.minStock) : undefined,
+        maxStock: formData.maxStock ? parseInt(formData.maxStock) : undefined,
+        costPrice: formData.costPrice ? parseFloat(formData.costPrice) : undefined,
+        reorderPoint: formData.reorderPoint ? parseInt(formData.reorderPoint) : undefined,
+        supplier: formData.supplier || null,
         expiryDate: formData.expiryDate || null,
+        batchNumber: formData.batchNumber || null,
+        isPerishable: formData.isPerishable,
         variations: formData.variations.map(v => ({
           name: v.name,
           price: parseFloat(v.price),
           isAvailable: v.isAvailable
-        })),
-        branchId: branchId,
-        categoryId: formData.category
+        }))
       };
       
-      return await createProduct(storeId, productData);
-    }, "Failed to add product");
-    
-    if (result) {
-      toast.success("Product added successfully");
-      setOpen(false);
-      setFormData({
-        name: "",
-        sku: "",
-        category: "",
-        price: "",
-        stock: "",
-        description: "",
-        barcode: "",
-        minStock: "",
-        maxStock: "",
-        costPrice: "",
-        reorderPoint: "",
-        supplier: "",
-        expiryDate: "",
-        batchNumber: "",
-        isPerishable: false,
-        variations: []
-      });
-      onProductAdded?.();
+      const result = await updateProduct(storeId, product._id, productData);
+      
+      if (result) {
+        toast.success("Product updated successfully");
+        onOpenChange(false);
+        onProductUpdated();
+      } else {
+        toast.error("Failed to update product");
+      }
+    } catch (error) {
+      console.error("Update product error:", error);
+      toast.error("Failed to update product");
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
-  };
-
-  const handleCategoryCreated = async () => {
-    const categoriesData = await getCategories(storeId);
-    setCategories(categoriesData);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>Edit Product</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -146,7 +140,6 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="iPhone 15 Pro"
                 required
               />
             </div>
@@ -156,17 +149,13 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 id="sku"
                 value={formData.sku}
                 onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
-                placeholder="IPH15P"
                 required
               />
             </div>
           </div>
           
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label htmlFor="category">Category *</Label>
-              <CreateCategoryDialog storeId={storeId} onCategoryCreated={handleCategoryCreated} />
-            </div>
+            <Label htmlFor="category">Category *</Label>
             <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))} required>
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
@@ -193,7 +182,6 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 step="0.01"
                 value={formData.costPrice}
                 onChange={(e) => setFormData(prev => ({ ...prev, costPrice: e.target.value }))}
-                placeholder="500.00"
               />
             </div>
             <div>
@@ -204,7 +192,6 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 step="0.01"
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                placeholder="999.99"
                 required
               />
             </div>
@@ -218,7 +205,6 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 type="number"
                 value={formData.stock}
                 onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.value }))}
-                placeholder="25"
                 required
               />
             </div>
@@ -229,7 +215,6 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 type="number"
                 value={formData.minStock}
                 onChange={(e) => setFormData(prev => ({ ...prev, minStock: e.target.value }))}
-                placeholder={inventorySettings.lowStockThreshold.toString()}
               />
             </div>
           </div>
@@ -242,7 +227,6 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 type="number"
                 value={formData.maxStock}
                 onChange={(e) => setFormData(prev => ({ ...prev, maxStock: e.target.value }))}
-                placeholder="100"
               />
             </div>
             <div>
@@ -251,7 +235,6 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
                 id="barcode"
                 value={formData.barcode}
                 onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
-                placeholder="123456789012"
               />
             </div>
           </div>
@@ -262,12 +245,10 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
               id="description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Product description..."
               rows={3}
             />
           </div>
 
-          {/* Advanced Options */}
           <div className="border-t pt-4">
             <Button
               type="button"
@@ -398,11 +379,11 @@ export default function AddProductDialog({ storeId, branchId, onProductAdded }: 
           </div>
 
           <div className="flex space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Adding..." : "Add Product"}
+              {loading ? "Updating..." : "Update Product"}
             </Button>
           </div>
         </form>

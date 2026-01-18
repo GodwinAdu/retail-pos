@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/helpers/current-user";
 import { getBranches } from "@/lib/actions/branch.actions";
+import StoreRedirect from "./_components/StoreRedirect";
 
 interface StorePageProps {
     params: Promise<{
@@ -20,13 +21,11 @@ export default async function StorePage({ params }: StorePageProps) {
         redirect(`/dashboard/${user.storeId}`);
     }
 
-    // Get branches for this store
     const branches = await getBranches(storeId);
 
-    if (branches.length === 0) {
+    if (!branches || branches.length === 0) {
         redirect(`/setup/${storeId}/branch`);
     }
 
-    // Redirect to first branch dashboard
-    redirect(`/dashboard/${storeId}/${branches[0]._id}`);
+    return <StoreRedirect storeId={storeId} branches={branches} />;
 }

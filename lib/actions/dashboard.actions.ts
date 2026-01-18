@@ -20,6 +20,16 @@ export const getDashboardData = withSubscriptionCheckByStoreId(async (storeId: s
     // Today's sales and revenue
     console.log('Dashboard query params:', { storeId, branchId, start, end });
     
+    // First check if there are ANY sales for this store/branch
+    const allSales = await Sale.find({
+      storeId: new Types.ObjectId(storeId),
+      branchId: new Types.ObjectId(branchId)
+    });
+    console.log('Total sales in database:', allSales.length);
+    if (allSales.length > 0) {
+      console.log('Sample sale:', JSON.stringify(allSales[0], null, 2));
+    }
+    
     const todaySales = await Sale.find({
       storeId: new Types.ObjectId(storeId),
       branchId: new Types.ObjectId(branchId),
@@ -40,8 +50,8 @@ export const getDashboardData = withSubscriptionCheckByStoreId(async (storeId: s
 
     // Products and stock
     const products = await Product.find({
-      storeId,
-      branchId,
+      storeId: new Types.ObjectId(storeId),
+      branchId: new Types.ObjectId(branchId),
     }).populate({path:'categoryId',model:Category});
 
     const lowStockProducts = products.filter(p => p.stock <= (p.minStock || 5) && p.stock > 0);
@@ -49,19 +59,22 @@ export const getDashboardData = withSubscriptionCheckByStoreId(async (storeId: s
 
     // Customers
     const totalCustomers = await Customer.countDocuments({
-      storeId
+      storeId: new Types.ObjectId(storeId)
     });
 
     const newCustomers = await Customer.countDocuments({
-      storeId,
+      storeId: new Types.ObjectId(storeId),
       createdAt: { $gte: start, $lte: end }
     });
 
-    // Weekly revenue (last 7 days)
+    // Weekly revenue (last 7 days from today)
     const weeklyRevenue = [];
+    const today = new Date();
     for (let i = 6; i >= 0; i--) {
-      const dayStart = new Date(start.getTime() - i * 24 * 60 * 60 * 1000);
-      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+      const dayStart = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
       
       const daySales = await Sale.find({
         storeId: new Types.ObjectId(storeId),
@@ -118,7 +131,7 @@ export const getDashboardData = withSubscriptionCheckByStoreId(async (storeId: s
 
     // Active staff
     const activeStaff = await User.countDocuments({
-      storeId,
+      storeId: new Types.ObjectId(storeId),
       isActive: true,
       role: { $in: ['admin', 'manager', 'sales_associate', 'cashier', 'inventory_manager'] }
     });

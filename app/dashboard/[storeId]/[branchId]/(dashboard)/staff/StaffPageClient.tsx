@@ -99,11 +99,11 @@ export default function StaffPageClient({ storeId, branchId, staff, stats, user 
                             <div className="flex items-center justify-between">
                                 <CardTitle className="text-white">Staff Members</CardTitle>
                                 <div className="flex space-x-2">
-                                    <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
+                                    <Button variant="outline" size="sm">
                                         <Search className="w-4 h-4 mr-2" />
                                         Search
                                     </Button>
-                                    <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
+                                    <Button variant="outline" size="sm" >
                                         <Filter className="w-4 h-4 mr-2" />
                                         Filter
                                     </Button>
